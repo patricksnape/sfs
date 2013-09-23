@@ -1,5 +1,8 @@
 *.py[cod]
 
+# IPython
+.ipynb_checkpoints/**
+
 # C extensions
 *.so
 
