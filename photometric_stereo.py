@@ -4,28 +4,25 @@ from scipy.linalg import pinv, norm
 
 def photometric_stereo(images, lights):
     LL = pinv(lights)
+
+    # n_masked_pixels x n_channels
+    pixels = images.as_vector(keep_channels=True)
+    n_pixels = pixels.shape[0]
+
+    albedo = np.zeros(n_pixels)
+    normals = np.zeros([n_pixels, 3])
     
-    height, width, N = images.shape
-    albedo = np.zeros([height, width])
-    
-    n = np.zeros([height, width, 3])
-    p = np.zeros([height, width])
-    q = np.zeros([height, width])
-    
-    for ii in xrange(height):
-        for jj in xrange(width):
-            I = images[ii, jj, :].flatten()
-            nn = np.dot(LL, I)
-            pp = norm(nn)
-            albedo[ii, jj] = pp
-            
-            if pp != 0.0:
-                # normal = n / albedo 
-                n[ii, jj, :] = nn / pp  
-                if n[ii, jj, 2] != 0.0:
-                    p[ii, jj] = n[ii, jj, 0] / n[ii, jj, 2]  # x / z
-                    q[ii, jj] = n[ii, jj, 1] / n[ii, jj, 2]  # y / z
+    for i in xrange(n_pixels):
+        I = pixels[i, :]
+        nn = np.dot(LL, I)
+        pixel_norm = norm(nn)
+        albedo[i] = pixel_norm
+
+        if pixel_norm != 0.0:
+            # normal = n / albedo
+            normals[i, :] = nn / pixel_norm
                     
-    return n, albedo
+    return (images.from_vector(normals, n_channels=3),
+            images.from_vector(albedo, n_channels=1))
 
 
