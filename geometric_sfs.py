@@ -85,55 +85,111 @@ def identity_expmap(base_vectors, tangent_vectors):
     return tangent_vectors
 
 
-def geometric_sfs(intensity_image, U, average_normals, light_vector,
-                  max_iters=20, logmap=identity_logmap,
+def geometric_sfs(intensity_image, normal_model, light_vector,
+                  max_iters=100, max_error=10**-6, logmap=identity_logmap,
                   expmap=identity_expmap):
-# Description parsed from
-# Facial Shape-from-shading and Recognition Using PrincipalGeodesic Analysis and Robust Statistics
-# IJCV 2008
-# 1. Calculate an initial estimate of the field of surface normals n using (12).
-# 2. Each normal in the estimated field n undergoes an
-#    azimuthal equidistant projection ((3)) to give a
-#    vector of transformed coordinates v0.
-# 3. The vector of best fit model parameters is given by
-#    b = P' * v0 .
-# 4. The vector of transformed coordinates corresponding
-#    to the best-fit parameters is given by vprime = (PP')v0.
-# 5. Using the inverse azimuthal equidistant projection
-#    ((4)), find the off-cone best fit surface normal nprime from vprime.
-# 6. Find the on-cone surface normal nprimeprime by rotating the
-#    off-cone surface normal nprime using nprimeprime(i,j) = theta * nprime(i,j)
-# 7. Test for convergence. If sum over i,j arccos(n(i,j) . nprimeprime(i,j)) < eps,
-#    where eps is a predetermined threshold, then stop and
-#    return b as the estimated model parameters and nprimeprime as
-#    the recovered needle map.
-# 8. Make n(i,j) = nprimeprime(i,j) and return to Step 2.
+    """
+    It is assumed that the given intensity image has been pre-aligned so that
+    it is in correspondance with the model.
 
-# Texture must be converted to greyscale
+    1. Calculate an initial estimate of the field of surface normals n using
+       (12)
+    2. Each normal in the estimated field n undergoes an azimuthal equidistant
+       projection (3) to give a vector of transformed coordinates v0.
+    3. The vector of best fit model parameters is given by ``b = P.T * v0 ``.
+    4. The vector of transformed coordinates corresponding
+       to the best-fit parameters is given by ``vprime = (P P.T)v0``
+    5. Using the inverse azimuthal equidistant projection
+       (4), find the off-cone best fit surface normal nprime from vprime.
+    6. Find the on-cone surface normal nprimeprime by rotating the
+       off-cone surface normal nprime using
+       ``nprimeprime(i,j) = theta * nprime(i, j)``
+    7. Test for convergence. If
+       ``sum over i,j arccos(n(i,j) . nprimeprime(i,j)) < eps``,
+       where eps is a predetermined threshold, then stop and return b as the
+       estimated model parameters and ``nprimeprime`` as rhe recovered needle
+       map.
+    8. Make ``n(i,j) = nprimeprime(i,j)`` and return to Step 2.
+
+    Parameters
+    ----------
+    intensity_image : (M, N, 1) :class:`pybug.image.MaskedNDImage`
+        The 1-channel intensity image of a face to recover normals from.
+    normal_model : :class:`pybug.model.linear.PCAModel`
+        A PCA model representing a subspace of normals.
+    light_vector : (3,) ndarray
+        A single light vector that represent the lighting direction that the
+        image is lit from.
+    max_iters : int, optional
+        The maximum number of iterations to perform.
+
+        Default: 100
+    max_error : float, optional
+        The maximum epsilon to test for convergence.
+
+        Default: 10^-6
+    logmap : func, optional
+        The logmap function to perform to the normals before reconstructing
+        from the PCA model. This should be the same subspace as the PCA model.
+
+        Default: Identity mapping (no-op)
+    expmap : func, optional
+        The expmap function to perform to the subspace after reconstruction
+        from the PCA model. This should be the same projection function as the
+        logmap.
+
+        Default: Identity mapping (no-op)
+
+    Returns
+    -------
+    normal_image : (M, N, 3) :class:`pybug.image.MaskedNDImage`
+        A 3-channel image representing the components of the recovered normals.
+
+    References
+    ----------
+    [1] Smith, William AP, and Edwin R. Hancock.
+        Facial Shape-from-shading and Recognition Using Principal Geodesic
+        Analysis and Robust Statistics
+        IJCV (2008)
+    [2] Smith, William AP, and Edwin R. Hancock.
+        Recovering facial shape using a statistical model of surface normal
+        direction.
+        T-PAMI (2006)
+    """
+    # Ensure the light is a unit vector
+    light_vector = normalise_vector(light_vector)
 
     # Equation (1): Should never be < 0 if image is properly scaled
-    theta_image = intensity_image.from_vector(np.arccos(intensity_image.as_vector()))
+    theta_vec = np.arccos(intensity_image.as_vector())
+    theta_image = intensity_image.from_vector(theta_vec)
 
-    n = esimate_normals_from_intensity(average_normals, theta_image)
+    n = esimate_normals_from_intensity(normal_model.mean, theta_image)
 
     for i in xrange(max_iters):
-        if i > 1:
-            n_vec = n.as_vector(keep_channels=3)
-            npp_vec = npp.as_vector(keep_channels=3)
-            print np.sum(np.real(np.arccos(np.sum(n_vec * npp_vec, axis=1))))
-            n = npp
-
-        v0 = logmap(average_normals, n)
+        v0 = logmap(normal_model.mean, n)
 
         # Vector of best-fit parameters
-        vprime = U.reconstruct(v0)
+        vprime = normal_model.reconstruct(v0)
 
-        nprime = expmap(average_normals, vprime)
+        nprime = expmap(normal_model.mean, vprime)
         nprime = normalise_image(nprime)
         
         # Equivalent to
         # expmap(theta * logmap(expmap(vprime)) / row_norm(logmap(expmap(vprime))))
         npp = on_cone_rotation(theta_image, nprime, light_vector)
+        npp = normalise_image(npp)
+
+        # Check for convergence of the algorithm (not guaranteed)
+        # Inner product
+        error = np.arccos(np.sum(n.as_vector(keep_channels=3) *
+                                 npp.as_vector(keep_channels=3), axis=1))
+        # Total error
+        error = np.sum(np.nan_to_num(error))
+        n = npp
+
+        # Algorithm has converged
+        if error < max_error:
+            break
 
     return normalise_image(npp)
 
