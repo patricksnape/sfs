@@ -3,6 +3,9 @@
 # IPython
 .ipynb_checkpoints/**
 
+# PyCharm
+.idea/**
+
 # C extensions
 *.so
 
