@@ -74,7 +74,7 @@ def poisson_neumann(gx, gy):
     fcos = dct(dct(f, norm='ortho', axis=0), norm='ortho', axis=1)
 
     # Compute the solution in the fourier domain
-    x, y = meshgrid(np.arange(width), np.arange(height))
+    x, y = np.meshgrid(np.arange(width), np.arange(height))
     denom = (2.0 * np.cos(np.pi * x / width) - 2.0) + (2.0 * np.cos(np.pi * y / height) - 2.0)
     # First element is fixed to 0.0
     fcos /= denom
