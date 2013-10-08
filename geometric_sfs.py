@@ -194,4 +194,54 @@ def geometric_sfs(intensity_image, normal_model, light_vector,
     return normalise_image(npp)
 
 
+def horn_brooks(intensity_image, normal_model, light_vector,
+                max_iters=100, c_lambda=0.001):
+    """
+    M. Brooks and B. Horn
+    Shape and Source from Shading
+    1985
+    """
+    from scipy.signal import convolve2d
+
+    # Ensure the light is a unit vector
+    light_vector = normalise_vector(light_vector)
+
+    # Equation (1): Should never be < 0 if image is properly scaled
+    theta_vec = np.arccos(intensity_image.as_vector())
+    theta_image = intensity_image.from_vector(theta_vec)
+
+    n_im = esimate_normals_from_intensity(normal_model.mean, theta_image)
+
+    average_kernel = np.array([[0.0,  0.25, 0.0],
+                               [0.25, 0.0,  0.25],
+                               [0.0,  0.25, 0.0]])
+
+    scale_constant = (1.0 / 4.0 * c_lambda)
+
+    n_vec = n_im.as_vector(keep_channels=3)
+    I_vec = intensity_image.as_vector()
+
+    for i in xrange(max_iters):
+        n_dot_s = np.sum(n_vec * light_vector, axis=1)
+
+        # Calculate the average normal neighbourhood
+        n_im = n_im.from_vector(n_vec)
+        n_xs = convolve2d(n_im.pixels[:, :, 0], average_kernel, mode='same')
+        n_ys = convolve2d(n_im.pixels[:, :, 1], average_kernel, mode='same')
+        n_zs = convolve2d(n_im.pixels[:, :, 2], average_kernel, mode='same')
+        n_bar = np.concatenate([n_xs[..., None],
+                                n_ys[..., None],
+                                n_zs[..., None]], axis=2)
+        n_bar = n_im.from_vector(n_bar.reshape([-1, 3])).as_vector(
+            keep_channels=True)
+
+        rho = scale_constant * (I_vec - n_dot_s)
+        m = n_bar + np.dot(rho[..., None], light_vector[..., None].T)
+        n_vec = normalise_vector(m)
+
+        vprime = normal_model.reconstruct(n_im.from_vector(n_vec))
+        n_vec = vprime.as_vector(keep_channels=True)
+
+    n_im = n_im.from_vector(n_vec)
+    return normalise_image(n_im)
 
