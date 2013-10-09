@@ -6,6 +6,9 @@
 # PyCharm
 .idea/**
 
+# Cython files
+fast_pga.c
+
 # C extensions
 *.so
 
