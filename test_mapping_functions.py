@@ -1,4 +1,4 @@
-from pga import logmap_pga_northpole, expmap_pga_northpole
+from pga import PGA
 from aep import Smith, Snape
 from vector_utils import normalise_vector
 from numpy.testing import assert_allclose
@@ -39,20 +39,20 @@ small_expected_aep_smith_tangent_vectors = np.array(
 
 
 def test_pga_northpole_logmap():
-    tangent_vectors = logmap_pga_northpole(small_base_vectors,
-                                           small_sd_vectors)
+    tangent_vectors = PGA(small_base_vectors).logmap(small_sd_vectors)
     assert_allclose(tangent_vectors, small_expected_pga_tangent_vectors)
 
 
 def test_pga_northpole_expmap():
-    mapped_vectors = expmap_pga_northpole(small_base_vectors,
-                                          small_expected_pga_tangent_vectors)
+    mapped_vectors = PGA(small_base_vectors).expmap(
+        small_expected_pga_tangent_vectors)
     assert_allclose(mapped_vectors, small_sd_vectors)
 
 
 def test_pga_northpole_mapping_equality():
-    tangent_vectors = logmap_pga_northpole(base_vectors, sd_vectors)
-    mapped_vectors = expmap_pga_northpole(base_vectors, tangent_vectors)
+    pga = PGA(base_vectors)
+    tangent_vectors = pga.logmap(sd_vectors)
+    mapped_vectors = pga.expmap(tangent_vectors)
     assert_allclose(mapped_vectors, sd_vectors)
 
 

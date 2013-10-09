@@ -3,53 +3,54 @@ from vector_utils import row_norm, normalise_vector
 from fast_pga import rotate_north_pole
 
 
-def logmap_pga_northpole(base_vectors, sd_vectors):
-    # If we've been passed a single vector to map, then add the extra axis
-    # Number of sample first
-    if len(sd_vectors.shape) < 3:
-        sd_vectors = sd_vectors[None, ...]
+class PGA(object):
 
-    # Rotate the data around the mean point to a small circle centered at the
-    # North pole
-    rotation_matrices = rotate_north_pole(base_vectors)
-    
-    rotated_data = np.einsum('ijv, fvj -> fvi', rotation_matrices, sd_vectors)
+    def __init__(self, base_vectors):
+        super(PGA, self).__init__()
+        self.base_vectors = base_vectors
+        self.rotation_matrices = rotate_north_pole(self.base_vectors)
 
-    # Perform the North Pole Logmap
-    # theta / sin(theta)
-    zs = rotated_data[..., 2]
-    scales = np.arccos(zs) / np.sqrt(1.0 - zs ** 2)
-    scales[np.isnan(scales)] = 1.0
-    # Build the column vector the transpose for correct ordering
-    vs = rotated_data * scales[..., None]
+    def expmap(self, tangent_vectors):
+        # If we've been passed a single vector to map, then add the extra axis
+        # Number of sample first
+        if len(tangent_vectors.shape) < 3:
+            tangent_vectors = tangent_vectors[None, ...]
 
-    return vs[..., :2]
+        # Expmap
+        v1 = tangent_vectors[..., 0]
+        v2 = tangent_vectors[..., 1]
+        normv = row_norm(tangent_vectors)
 
+        exp = np.concatenate([(v1 * np.sin(normv) / normv)[..., None],
+                              (v2 * np.sin(normv) / normv)[..., None],
+                              np.cos(normv)[..., None]], axis=2)
+        near_zero_ind = normv < np.spacing(1)
+        exp[near_zero_ind, :] = [0.0, 0.0, 1.0]
 
-def expmap_pga_northpole(base_vectors, tangent_vectors):
-    # If we've been passed a single vector to map, then add the extra axis
-    # Number of sample first
-    if len(tangent_vectors.shape) < 3:
-        tangent_vectors = tangent_vectors[None, ...]
+        # Rotate back to geodesic mean from north pole
+        # Apply inverse rotation matrix due to data ordering
+        ns = np.einsum('fvi, ijv -> fvj', exp, self.rotation_matrices)
 
-    rotation_matrices = rotate_north_pole(base_vectors)
+        return ns
 
-    # Expmap
-    v1 = tangent_vectors[..., 0]
-    v2 = tangent_vectors[..., 1]
-    normv = row_norm(tangent_vectors)
+    def logmap(self, sd_vectors):
+        # If we've been passed a single vector to map, then add the extra axis
+        # Number of sample first
+        if len(sd_vectors.shape) < 3:
+            sd_vectors = sd_vectors[None, ...]
 
-    exp = np.concatenate([(v1 * np.sin(normv) / normv)[..., None],
-                          (v2 * np.sin(normv) / normv)[..., None],
-                          np.cos(normv)[..., None]], axis=2)
-    near_zero_ind = normv < np.spacing(1)
-    exp[near_zero_ind, :] = [0.0, 0.0, 1.0]
+        rotated_data = np.einsum('ijv, fvj -> fvi', self.rotation_matrices,
+                                                    sd_vectors)
 
-    # Rotate back to geodesic mean from north pole
-    # Apply inverse rotation matrix due to data ordering
-    ns = np.einsum('fvi, ijv -> fvj', exp, rotation_matrices)
+        # Perform the North Pole Logmap
+        # theta / sin(theta)
+        zs = rotated_data[..., 2]
+        scales = np.arccos(zs) / np.sqrt(1.0 - zs ** 2)
+        scales[np.isnan(scales)] = 1.0
+        # Build the column vector the transpose for correct ordering
+        vs = rotated_data * scales[..., None]
 
-    return ns
+        return vs[..., :2]
 
 
 def intrinsic_mean(sd_vectors, logmap, expmap, max_iters=20):
