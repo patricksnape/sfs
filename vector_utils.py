@@ -12,18 +12,18 @@ def row_norm(v):
 def cart2sph(x, y, z):
     xy = np.power(x, 2) + np.power(y, 2)
     # for elevation angle defined from XY-plane up
-    return np.vstack([np.arctan2(y, x), np.arctan2(z, np.sqrt(xy))]).T
-
+    return np.concatenate([np.arctan2(y, x)[..., None],
+                           np.arctan2(z, np.sqrt(xy))[..., None]], axis=-1)
 
 def sph2cart(azimuth, elevation, r):
-    cart = np.empty([azimuth.shape[0], 3])
     azi_cos = np.cos(azimuth)
     ele_cos = np.cos(elevation)
     azi_sin = np.sin(azimuth)
     ele_sin = np.sin(elevation)
-    cart[:, 0] = r * ele_cos * azi_cos
-    cart[:, 1] = r * ele_cos * azi_sin
-    cart[:, 2] = r * ele_sin
+
+    cart = np.concatenate([(r * ele_cos * azi_cos)[..., None],
+                           (r * ele_cos * azi_sin)[..., None],
+                           (r * ele_sin)[..., None]], axis=-1)
     return cart
 
 
