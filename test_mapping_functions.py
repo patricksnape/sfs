@@ -1,6 +1,5 @@
 from pga import logmap_pga_northpole, expmap_pga_northpole
-from aep import expmap_aep_smith, expmap_aep_snape, logmap_aep_snape, \
-    logmap_aep_smith
+from aep import Smith, Snape
 from vector_utils import normalise_vector
 from numpy.testing import assert_allclose
 import numpy as np
@@ -58,44 +57,44 @@ def test_pga_northpole_mapping_equality():
 
 
 def test_aep_snape_logmap():
-    tangent_vectors = logmap_aep_snape(small_base_vectors,
-                                       small_sd_vectors)
+    tangent_vectors = Snape(small_base_vectors).logmap(small_sd_vectors)
     assert_allclose(tangent_vectors, small_expected_aep_snape_tangent_vectors)
 
 
 def test_aep_snape_expmap():
-    mapped_vectors = expmap_aep_snape(small_base_vectors,
-                                      small_expected_aep_snape_tangent_vectors)
+    mapped_vectors = Snape(small_base_vectors).expmap(
+        small_expected_aep_snape_tangent_vectors)
     assert_allclose(mapped_vectors, small_sd_vectors)
 
 
 def test_aep_smith_logmap():
-    tangent_vectors = logmap_aep_smith(small_base_vectors,
-                                       small_sd_vectors)
+    tangent_vectors = Smith(small_base_vectors).logmap(small_sd_vectors)
     assert_allclose(tangent_vectors, small_expected_aep_smith_tangent_vectors)
 
 
 def test_aep_smith_expmap():
-    mapped_vectors = expmap_aep_smith(small_base_vectors,
-                                      small_expected_aep_smith_tangent_vectors)
+    mapped_vectors = Smith(small_base_vectors).expmap(
+        small_expected_aep_smith_tangent_vectors)
     assert_allclose(mapped_vectors, small_sd_vectors)
 
 
 def test_aep_snape_mapping_equality():
-    tangent_vectors = logmap_aep_snape(base_vectors, sd_vectors)
-    mapped_vectors = expmap_aep_snape(base_vectors, tangent_vectors)
+    snape = Snape(base_vectors)
+    tangent_vectors = snape.logmap(sd_vectors)
+    mapped_vectors = snape.expmap(tangent_vectors)
     assert_allclose(mapped_vectors, sd_vectors)
 
 
 def test_aep_smith_mapping_equality():
-    tangent_vectors = logmap_aep_smith(base_vectors, sd_vectors)
-    mapped_vectors = expmap_aep_smith(base_vectors, tangent_vectors)
+    smith = Smith(base_vectors)
+    tangent_vectors = smith.logmap(sd_vectors)
+    mapped_vectors = smith.expmap(tangent_vectors)
     assert_allclose(mapped_vectors, sd_vectors)
 
 
 def test_aep_snape_smith_mapping_equality():
-    snape = expmap_aep_snape(base_vectors, logmap_aep_snape(base_vectors,
-                                                            sd_vectors))
-    smith = expmap_aep_smith(base_vectors, logmap_aep_smith(base_vectors,
-                                                            sd_vectors))
-    assert_allclose(snape, smith)
+    snape = Snape(base_vectors)
+    smith = Smith(base_vectors)
+    snape_vecs = snape.expmap(snape.logmap(sd_vectors))
+    smith_vecs = smith.expmap(smith.logmap(sd_vectors))
+    assert_allclose(snape_vecs, smith_vecs)
