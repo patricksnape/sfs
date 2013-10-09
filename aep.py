@@ -5,24 +5,19 @@ from vector_utils import sph2cart, cart2sph
 def expmap_aep_smith(base_vectors, tangent_vectors):
     # If we've been passed a single vector to map, then add the extra axis
     # Number of sample first
-    if len(tangent_vectors.shape) == 3:
-        vector_count = tangent_vectors.shape[0]
-    else:
+    if len(tangent_vectors.shape) < 3:
         tangent_vectors = tangent_vectors[None, ...]
-        vector_count = 1
 
-    N = tangent_vectors.shape[1]
-    ns = np.zeros([vector_count, N, tangent_vectors.shape[2] + 1])
     eps = np.spacing(1)
 
-    kset = tangent_vectors
-
-    long0lat1 = cart2sph(-base_vectors[:, 1], base_vectors[:, 0], base_vectors[:, 2])
+    long0lat1 = cart2sph(-base_vectors[:, 1], base_vectors[:, 0],
+                         base_vectors[:, 2])
     long0lat1[:, 0] += np.pi
     long0lat1 = long0lat1[None, ...]
 
-    rho = np.sqrt(kset[..., 0] ** 2 + kset[..., 1] ** 2)
-    Z = np.exp(np.arctan2(kset[..., 1], kset[..., 0]) * 1j)
+    rho = np.sqrt(tangent_vectors[..., 0] ** 2 + tangent_vectors[..., 1] ** 2)
+    Z = np.exp(np.arctan2(tangent_vectors[..., 1],
+                          tangent_vectors[..., 0]) * 1j)
     V1 = rho * np.real(Z)
     V2 = rho * np.imag(Z)
 
@@ -33,8 +28,11 @@ def expmap_aep_smith(base_vectors, tangent_vectors):
 
     c[ir] = eps
 
-    Y = np.real(np.arcsin(np.cos(c) * np.sin(long0lat1[..., 1]) + np.cos(long0lat1[..., 1]) * np.sin(c) * V2 / rho))
-    X = np.real(long0lat1[..., 0] + np.arctan2(V1 * np.sin(c), np.cos(long0lat1[..., 1]) * np.cos(c) * rho - np.sin(long0lat1[..., 1]) * V2 * np.sin(c)))
+    Y = np.real(np.arcsin(np.cos(c) * np.sin(long0lat1[..., 1]) +
+                          np.cos(long0lat1[..., 1]) * np.sin(c) * V2 / rho))
+    X = np.real(long0lat1[..., 0] +
+                np.arctan2(V1 * np.sin(c), np.cos(long0lat1[..., 1]) *
+                np.cos(c) * rho - np.sin(long0lat1[..., 1]) * V2 * np.sin(c)))
 
     ns = sph2cart(X - np.pi, Y, np.ones_like(Y))
     # Swap x and y axes
@@ -56,23 +54,29 @@ def logmap_aep_smith(base_vectors, sd_vectors):
     N = sd_vectors.shape[1]
     vs = np.zeros([vector_count, N, sd_vectors.shape[2] - 1])
 
-    kset = sd_vectors
-
-    longlat = cart2sph(-kset[..., 1], kset[..., 0], kset[..., 2])
+    longlat = cart2sph(-sd_vectors[..., 1], sd_vectors[..., 0],
+                       sd_vectors[..., 2])
     longlat[..., 0] += np.pi
 
-    long0lat1 = cart2sph(-base_vectors[:, 1], base_vectors[:, 0], base_vectors[:, 2])
+    long0lat1 = cart2sph(-base_vectors[:, 1], base_vectors[:, 0],
+                         base_vectors[:, 2])
     long0lat1[:, 0] += np.pi
     long0lat1 = long0lat1[None, ...]
 
-    c = np.arccos(np.sin(long0lat1[..., 1]) * np.sin(longlat[..., 1]) + np.cos(long0lat1[..., 1]) * np.cos(longlat[..., 1]) * np.cos(longlat[..., 0] - long0lat1[..., 0]))
+    c = np.arccos(np.sin(long0lat1[..., 1]) * np.sin(longlat[..., 1]) +
+                  np.cos(long0lat1[..., 1]) * np.cos(longlat[..., 1]) *
+                  np.cos(longlat[..., 0] - long0lat1[..., 0]))
 
     k = 1.0 / np.sin(c)
     k = np.nan_to_num(k)
     k = c * k
 
-    vs[..., 0] = k * (np.cos(longlat[..., 1]) * np.sin(longlat[..., 0] - long0lat1[..., 0]))
-    vs[..., 1] = k * (np.cos(long0lat1[..., 1]) * np.sin(longlat[..., 1]) - np.sin(long0lat1[..., 1]) * np.cos(longlat[..., 1]) * np.cos(longlat[..., 0] - long0lat1[..., 0]))
+    v0 = k * (np.cos(longlat[..., 1]) * np.sin(longlat[..., 0] -
+              long0lat1[..., 0]))
+    v1 = k * (np.cos(long0lat1[..., 1]) * np.sin(longlat[..., 1]) -
+              np.sin(long0lat1[..., 1]) * np.cos(longlat[..., 1]) *
+              np.cos(longlat[..., 0] - long0lat1[..., 0]))
+    vs = np.dstack([v0[..., None], v1[..., None]])
 
     return vs
 
