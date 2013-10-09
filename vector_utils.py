@@ -15,6 +15,7 @@ def cart2sph(x, y, z):
     return np.concatenate([np.arctan2(y, x)[..., None],
                            np.arctan2(z, np.sqrt(xy))[..., None]], axis=-1)
 
+
 def sph2cart(azimuth, elevation, r):
     azi_cos = np.cos(azimuth)
     ele_cos = np.cos(elevation)
