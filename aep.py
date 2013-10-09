@@ -117,46 +117,6 @@ def logmap_aep_snape(base_vectors, sd_vectors):
     return vs
 
 
-def logmap_aep_snape(base_vectors, sd_vectors):
-    # If we've been passed a single vector to map, then add the extra axis
-    # Number of sample first
-    if len(sd_vectors.shape) < 3:
-        sd_vectors = sd_vectors[None, ...]
-
-    thetaav = elevation(base_vectors[:, 2])
-    phiav = azimuth(base_vectors[:, 0], base_vectors[:, 1])
-    phiav, thetaav = clip_angles(phiav, thetaav)
-
-    # find any zero normals as they present a real problem
-    # the column indicies are the same in both sets of data
-    zero_indices = np.sum(np.abs(sd_vectors), axis=-1) == 0.0
-
-    thetak = elevation(sd_vectors[..., 2])
-    phik = azimuth(sd_vectors[..., 0], sd_vectors[..., 1])
-    phik, thetak = clip_angles(phik, thetak)
-
-    # cos(c) = sin(thetaav) * sin(thetak) +
-    #          cos(thetaav) * cos(thetak) * cos[phik - phiav]
-    cosc = (np.sin(thetaav) * np.sin(thetak) +
-            np.cos(thetaav) * np.cos(thetak) * np.cos(phik - phiav))
-    c = np.arccos(cosc)
-    # kprime = c / sin(c)
-    kprime = c / np.sin(c)
-
-    # xs = kprime * cos(thetak) * sin[phik - phiav]
-    xs = kprime * np.cos(thetak) * np.sin(phik - phiav)
-    # ys = kprime * (cos(thetaav) * sin(phik) -
-    #      sin(thetaav) * cos(thetak) * cos[phik - phiav]
-    ys = kprime * (np.cos(thetaav) * np.sin(thetak) -
-                   np.sin(thetaav) * np.cos(thetak) * np.cos(phik - phiav))
-    vs = np.dstack([xs[..., None], ys[..., None]])
-
-    # reset the zero normals back to 0
-    vs[zero_indices, :] = 0.0
-
-    return vs
-
-
 def expmap_aep_snape(base_vectors, tangent_vectors):
     # If we've been passed a single vector to map, then add the extra axis
     # Number of sample first
@@ -245,4 +205,4 @@ def elevation(zs):
 
 # phi = atan(ny,nx)
 def azimuth(xs, ys):
-     return np.arctan2(ys, xs)
+    return np.arctan2(ys, xs)
