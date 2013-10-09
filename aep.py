@@ -45,14 +45,8 @@ def expmap_aep_smith(base_vectors, tangent_vectors):
 def logmap_aep_smith(base_vectors, sd_vectors):
     # If we've been passed a single vector to map, then add the extra axis
     # Number of sample first
-    if len(sd_vectors.shape) == 3:
-        vector_count = sd_vectors.shape[0]
-    else:
+    if len(sd_vectors.shape) < 3:
         sd_vectors = sd_vectors[None, ...]
-        vector_count = 1
-
-    N = sd_vectors.shape[1]
-    vs = np.zeros([vector_count, N, sd_vectors.shape[2] - 1])
 
     longlat = cart2sph(-sd_vectors[..., 1], sd_vectors[..., 0],
                        sd_vectors[..., 2])
