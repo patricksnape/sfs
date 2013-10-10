@@ -1,5 +1,6 @@
 from pga import PGA
 from aep import Smith, Snape
+from cosine_normals import Spherical
 from vector_utils import normalise_vector
 from numpy.testing import assert_allclose
 import numpy as np
@@ -36,6 +37,11 @@ small_expected_aep_smith_tangent_vectors = np.array(
 
      [[-1.71331896,  1.78874102],
       [-0.06747517,  0.36069066]]])
+small_expected_spherical_tangent_vectors = np.array(
+    [[[ 0.97523904,  0.22115337,  0.6379864 ,  0.77004763],
+     [ 0.68261463,  0.73077853, -0.68076919,  0.73249799]],
+     [[-0.90290416, -0.42984192, -0.28443833,  0.95869434],
+      [-0.72580064,  0.6879051 ,  0.4832034 ,  0.87550812]]])
 
 
 def test_pga_northpole_logmap():
@@ -51,6 +57,24 @@ def test_pga_northpole_expmap():
 
 def test_pga_northpole_mapping_equality():
     pga = PGA(base_vectors)
+    tangent_vectors = pga.logmap(sd_vectors)
+    mapped_vectors = pga.expmap(tangent_vectors)
+    assert_allclose(mapped_vectors, sd_vectors)
+
+
+def test_spherical_logmap():
+    tangent_vectors = Spherical().logmap(small_sd_vectors)
+    assert_allclose(tangent_vectors, small_expected_spherical_tangent_vectors)
+
+
+def test_spherical_expmap():
+    mapped_vectors = Spherical().expmap(
+        small_expected_spherical_tangent_vectors)
+    assert_allclose(mapped_vectors, small_sd_vectors)
+
+
+def test_spherical_mapping_equality():
+    pga = Spherical()
     tangent_vectors = pga.logmap(sd_vectors)
     mapped_vectors = pga.expmap(tangent_vectors)
     assert_allclose(mapped_vectors, sd_vectors)
