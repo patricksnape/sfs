@@ -6,16 +6,30 @@ from numpy.linalg import eig
 from scipy.ndimage.filters import gaussian_filter
 
 
+def gradient_field_from_normals(normals):
+    vector = normals.as_vector(keep_channels=True)
+
+    gradient_field = np.zeros([vector.shape[0], 2])
+    gradient_field[:, 0] = vector[:, 0] / vector[:, 2]
+    gradient_field[:, 1] = vector[:, 1] / vector[:, 2]
+    gradient_field[np.isinf(gradient_field)] = 0.0
+    gradient_field[np.isnan(gradient_field)] = 0.0
+
+    return normals.from_vector(gradient_field, n_channels=2)
+
+
 def frankotchellappa(dzdx, dzdy):
     rows, cols = dzdx.shape
+    eps = np.spacing(1)
 
     # The following sets up matrices specifying frequencies in the x and y
     # directions corresponding to the Fourier transforms of the gradient
     # data.  They range from -0.5 cycles/pixel to + 0.5 cycles/pixel.
     # The scaling of this is irrelevant as long as it represents a full
     # circle domain. This is functionally equivalent to any constant * pi
-    row_grid = np.linspace(-0.5, 0.5, rows)
-    col_grid = np.linspace(-0.5, 0.5, cols)
+    pi_over_2 = np.pi / 2.0
+    row_grid = np.linspace(-pi_over_2, pi_over_2, rows)
+    col_grid = np.linspace(-pi_over_2, pi_over_2, cols)
     wx, wy = np.meshgrid(col_grid, row_grid)
 
     # Quadrant shift to put zero frequency at the appropriate edge
@@ -30,7 +44,7 @@ def frankotchellappa(dzdx, dzdy):
     # weighting the Fourier coefficients by their frequencies in x and y and
     # then dividing by the squared frequency.  eps is added to the
     # denominator to avoid division by 0.
-    Z = (-1j * wx * DZDX - 1j * wy * DZDY) / (wx ** 2 + wy ** 2 + 0.000001)
+    Z = (-1j * wx * DZDX - 1j * wy * DZDY) / (wx ** 2 + wy ** 2 + eps)
 
     return np.real(ifft2(Z))
 
