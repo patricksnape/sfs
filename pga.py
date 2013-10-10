@@ -54,7 +54,7 @@ class PGA(object):
 
 
 def intrinsic_mean(sd_vectors, mapping_class, max_iters=20):
-    # Compute initial estimate (Euclidian mean of data)
+    # Compute initial estimate (Euclidean mean of data)
     mus = normalise_vector(np.mean(sd_vectors, axis=0))
 
     for i in xrange(max_iters):

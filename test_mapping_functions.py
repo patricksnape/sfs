@@ -1,4 +1,4 @@
-from pga import PGA
+from pga import PGA, intrinsic_mean
 from aep import Smith, Snape
 from cosine_normals import Spherical
 from vector_utils import normalise_vector
@@ -42,6 +42,8 @@ small_expected_spherical_tangent_vectors = np.array(
      [ 0.68261463,  0.73077853, -0.68076919,  0.73249799]],
      [[-0.90290416, -0.42984192, -0.28443833,  0.95869434],
       [-0.72580064,  0.6879051 ,  0.4832034 ,  0.87550812]]])
+expected_pga_northpole_mu = np.array([[-0.2585258 , -0.54531364,  0.79736908],
+                                      [-0.11649889,  0.97854257, -0.16994838]])
 
 
 def test_pga_northpole_logmap():
@@ -60,6 +62,11 @@ def test_pga_northpole_mapping_equality():
     tangent_vectors = pga.logmap(sd_vectors)
     mapped_vectors = pga.expmap(tangent_vectors)
     assert_allclose(mapped_vectors, sd_vectors)
+
+
+def test_pga_northpole_intrinsic_mean():
+    mu = intrinsic_mean(small_sd_vectors, PGA, max_iters=5)
+    assert_allclose(mu, expected_pga_northpole_mu)
 
 
 def test_spherical_logmap():
@@ -122,3 +129,8 @@ def test_aep_snape_smith_mapping_equality():
     snape_vecs = snape.expmap(snape.logmap(sd_vectors))
     smith_vecs = smith.expmap(smith.logmap(sd_vectors))
     assert_allclose(snape_vecs, smith_vecs)
+
+
+def test_aep_smith_intrinsic_mean():
+    mu = intrinsic_mean(small_sd_vectors, Smith, max_iters=5)
+    assert_allclose(mu, expected_pga_northpole_mu)
