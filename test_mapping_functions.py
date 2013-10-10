@@ -1,5 +1,5 @@
 from pga import PGA, intrinsic_mean
-from aep import Smith, Snape
+from aep import AEP
 from cosine_normals import Spherical
 from vector_utils import normalise_vector
 from numpy.testing import assert_allclose
@@ -25,12 +25,6 @@ small_expected_pga_tangent_vectors = np.array([[[ 0.13036596,  0.18233274],
 
                                               [[-1.81744851, -1.68283606],
                                                [ 0.32233591, -0.17535739]]])
-small_expected_aep_snape_tangent_vectors = np.array(
-    [[[ 0.15280248,  0.15605087],
-     [-2.38228641, -0.2084999 ]],
-
-    [[-0.58328875, -2.48658029],
-     [-0.03721135, -0.35865463]]])
 small_expected_aep_smith_tangent_vectors = np.array(
     [[[ 0.18451048, -0.12726506],
       [-1.26978438, -1.15810307]],
@@ -87,50 +81,24 @@ def test_spherical_mapping_equality():
     assert_allclose(mapped_vectors, sd_vectors)
 
 
-def test_aep_snape_logmap():
-    tangent_vectors = Snape(small_base_vectors).logmap(small_sd_vectors)
-    assert_allclose(tangent_vectors, small_expected_aep_snape_tangent_vectors)
-
-
-def test_aep_snape_expmap():
-    mapped_vectors = Snape(small_base_vectors).expmap(
-        small_expected_aep_snape_tangent_vectors)
-    assert_allclose(mapped_vectors, small_sd_vectors)
-
-
-def test_aep_smith_logmap():
-    tangent_vectors = Smith(small_base_vectors).logmap(small_sd_vectors)
+def test_aep_logmap():
+    tangent_vectors = AEP(small_base_vectors).logmap(small_sd_vectors)
     assert_allclose(tangent_vectors, small_expected_aep_smith_tangent_vectors)
 
 
-def test_aep_smith_expmap():
-    mapped_vectors = Smith(small_base_vectors).expmap(
+def test_aep_expmap():
+    mapped_vectors = AEP(small_base_vectors).expmap(
         small_expected_aep_smith_tangent_vectors)
     assert_allclose(mapped_vectors, small_sd_vectors)
 
 
-def test_aep_snape_mapping_equality():
-    snape = Snape(base_vectors)
-    tangent_vectors = snape.logmap(sd_vectors)
-    mapped_vectors = snape.expmap(tangent_vectors)
-    assert_allclose(mapped_vectors, sd_vectors)
-
-
 def test_aep_smith_mapping_equality():
-    smith = Smith(base_vectors)
+    smith = AEP(base_vectors)
     tangent_vectors = smith.logmap(sd_vectors)
     mapped_vectors = smith.expmap(tangent_vectors)
     assert_allclose(mapped_vectors, sd_vectors)
 
 
-def test_aep_snape_smith_mapping_equality():
-    snape = Snape(base_vectors)
-    smith = Smith(base_vectors)
-    snape_vecs = snape.expmap(snape.logmap(sd_vectors))
-    smith_vecs = smith.expmap(smith.logmap(sd_vectors))
-    assert_allclose(snape_vecs, smith_vecs)
-
-
-def test_aep_smith_intrinsic_mean():
-    mu = intrinsic_mean(small_sd_vectors, Smith, max_iters=5)
+def test_aep_intrinsic_mean():
+    mu = intrinsic_mean(small_sd_vectors, AEP, max_iters=5)
     assert_allclose(mu, expected_pga_northpole_mu)
