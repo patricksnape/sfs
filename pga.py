@@ -53,12 +53,14 @@ class PGA(object):
         return vs[..., :2]
 
 
-def intrinsic_mean(sd_vectors, logmap, expmap, max_iters=20):
+def intrinsic_mean(sd_vectors, mapping_class, max_iters=20):
     # Compute initial estimate (Euclidian mean of data)
     mus = normalise_vector(np.mean(sd_vectors, axis=0))
 
     for i in xrange(max_iters):
+        mapping_object = mapping_class(mus)
         # Iteratively improve estimate of intrinsic mean
-        mus = np.squeeze(expmap(mus, np.mean(logmap(mus, sd_vectors), axis=0)))
+        mean_tangent = np.mean(mapping_object.logmap(sd_vectors), axis=0)
+        mus = np.squeeze(mapping_object.expmap(mean_tangent))
 
     return mus
