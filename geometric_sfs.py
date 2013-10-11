@@ -77,17 +77,18 @@ def esimate_normals_from_intensity(average_normals, theta_image):
     return average_normals.from_vector(nestimates)
 
 
-def identity_logmap(base_vectors, sd_vectors):
-    return sd_vectors
+class IdentityMapper(object):
 
+    def logmap(self, sd_vectors):
+        return sd_vectors
 
-def identity_expmap(base_vectors, tangent_vectors):
-    return tangent_vectors
+    def expmap(self, tangent_vectors):
+        return tangent_vectors
 
 
 def geometric_sfs(intensity_image, normal_model, light_vector,
-                  max_iters=100, max_error=10**-6, logmap=identity_logmap,
-                  expmap=identity_expmap):
+                  max_iters=100, max_error=10**-6,
+                  mapping_object=IdentityMapper()):
     """
     It is assumed that the given intensity image has been pre-aligned so that
     it is in correspondance with the model.
@@ -128,15 +129,11 @@ def geometric_sfs(intensity_image, normal_model, light_vector,
         The maximum epsilon to test for convergence.
 
         Default: 10^-6
-    logmap : func, optional
-        The logmap function to perform to the normals before reconstructing
-        from the PCA model. This should be the same subspace as the PCA model.
-
-        Default: Identity mapping (no-op)
-    expmap : func, optional
-        The expmap function to perform to the subspace after reconstruction
-        from the PCA model. This should be the same projection function as the
-        logmap.
+    mapping_object : MappingClass, optional
+        A class that provides both the logmap and expmap functions.
+        The logmap function is performed on the normals before reconstructing
+        from the PCA model. The expmap function is performed on the subspace
+        after reconstruction from the PCA model
 
         Default: Identity mapping (no-op)
 
@@ -166,12 +163,12 @@ def geometric_sfs(intensity_image, normal_model, light_vector,
     n = esimate_normals_from_intensity(normal_model.mean, theta_image)
 
     for i in xrange(max_iters):
-        v0 = logmap(normal_model.mean, n)
+        v0 = mapping_object.logmap(n)
 
         # Vector of best-fit parameters
         vprime = normal_model.reconstruct(v0)
 
-        nprime = expmap(normal_model.mean, vprime)
+        nprime = mapping_object.expmap(vprime)
         nprime = normalise_image(nprime)
         
         # Equivalent to
