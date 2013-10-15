@@ -3,24 +3,38 @@ from scipy.fftpack import ifftshift, fft2, ifft2, dct, idct
 from scipy.sparse.linalg import spsolve, lsqr
 from scipy.sparse import csc_matrix, issparse
 from numpy.linalg import eig
-from scipy.ndimage.filters import gaussian_filter
+
+
+def test_reconstruction(im):
+    from copy import deepcopy
+    from pybug.image import MaskedNDImage, DepthImage
+
+    im = deepcopy(im)
+    new_im = MaskedNDImage.blank(im.shape, mask=im.mask, n_channels=3)
+    im.rebuild_mesh()
+    n = im.mesh.vertex_normals
+    new_im.from_vector_inplace(n.flatten())
+    g = gradient_field_from_normals(new_im)
+    d = frankotchellappa(g.pixels[..., 0], g.pixels[..., 1])
+
+    im.view(mode='mesh', normals=n, mask_points=20)
+    DepthImage(d - np.min(d)).view_new(mode='mesh')
 
 
 def gradient_field_from_normals(normals):
     vector = normals.as_vector(keep_channels=True)
 
     gradient_field = np.zeros([vector.shape[0], 2])
-    gradient_field[:, 0] = vector[:, 0] / vector[:, 2]
-    gradient_field[:, 1] = vector[:, 1] / vector[:, 2]
-    gradient_field[np.isinf(gradient_field)] = 0.0
-    gradient_field[np.isnan(gradient_field)] = 0.0
+    zero_indices = vector[:, 2] != 0.0
+    nonzero_zs = vector[:, 2][zero_indices]
+    gradient_field[:, 0][zero_indices] = -vector[:, 0][zero_indices] / nonzero_zs
+    gradient_field[:, 1][zero_indices] = vector[:, 1][zero_indices] / nonzero_zs
 
     return normals.from_vector(gradient_field, n_channels=2)
 
 
 def frankotchellappa(dzdx, dzdy):
     rows, cols = dzdx.shape
-    eps = np.spacing(1)
 
     # The following sets up matrices specifying frequencies in the x and y
     # directions corresponding to the Fourier transforms of the gradient
@@ -42,9 +56,10 @@ def frankotchellappa(dzdx, dzdy):
 
     # Integrate in the frequency domain by phase shifting by pi/2 and
     # weighting the Fourier coefficients by their frequencies in x and y and
-    # then dividing by the squared frequency.  eps is added to the
-    # denominator to avoid division by 0.
-    Z = (-1j * wx * DZDX - 1j * wy * DZDY) / (wx ** 2 + wy ** 2 + eps)
+    # then dividing by the squared frequency
+    denom = (wx ** 2 + wy ** 2)
+    Z = (-1j * wx * DZDX - 1j * wy * DZDY) / denom
+    Z = np.nan_to_num(Z)
 
     return np.real(ifft2(Z))
 

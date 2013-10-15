@@ -1,4 +1,5 @@
 import numpy as np
+from mapping import IdentityMapper
 from pybug.image import MaskedNDImage
 from vector_utils import normalise_vector, normalise_image
 
@@ -78,21 +79,12 @@ def esimate_normals_from_intensity(average_normals, theta_image):
     return average_normals.from_vector(nestimates)
 
 
-class IdentityMapper(object):
-
-    def logmap(self, sd_vectors):
-        return sd_vectors
-
-    def expmap(self, tangent_vectors):
-        return tangent_vectors
-
-
 def geometric_sfs(intensity_image, initial_estimate, normal_model,
-                  light_vector, max_iters=100, max_error=10**-6,
+                  light_vector, n_iters=100, max_error=10**-6,
                   mapping_object=IdentityMapper()):
     """
     It is assumed that the given intensity image has been pre-aligned so that
-    it is in correspondance with the model.
+    it is in correspondence with the model.
 
     1. Calculate an initial estimate of the field of surface normals n using
        (12)
@@ -125,7 +117,7 @@ def geometric_sfs(intensity_image, initial_estimate, normal_model,
     light_vector : (3,) ndarray
         A single light vector that represent the lighting direction that the
         image is lit from.
-    max_iters : int, optional
+    n_iters : int, optional
         The maximum number of iterations to perform.
 
         Default: 100
@@ -165,8 +157,8 @@ def geometric_sfs(intensity_image, initial_estimate, normal_model,
     theta_image = intensity_image.from_vector(theta_vec)
 
     n = esimate_normals_from_intensity(initial_estimate, theta_image)
-
-    for i in xrange(max_iters):
+    from sfs_io import print_replace_line
+    for i in xrange(n_iters):
         v0 = mapping_object.logmap(n)
 
         # Vector of best-fit parameters
@@ -188,15 +180,17 @@ def geometric_sfs(intensity_image, initial_estimate, normal_model,
         error = np.sum(np.nan_to_num(error))
         n = npp
 
+        print_replace_line(str(error))
+
         # Algorithm has converged
         if error < max_error:
             break
 
-    return normalise_image(npp)
+    return normalise_image(nprime)
 
 
 def horn_brooks(intensity_image, initial_estimate, normal_model, light_vector,
-                max_iters=100, c_lambda=0.001,
+                n_iters=100, c_lambda=0.001,
                 mapping_object=IdentityMapper()):
     """
     M. Brooks and B. Horn
@@ -223,7 +217,7 @@ def horn_brooks(intensity_image, initial_estimate, normal_model, light_vector,
     n_vec = n_im.as_vector(keep_channels=True)
     I_vec = intensity_image.as_vector()
 
-    for i in xrange(max_iters):
+    for i in xrange(n_iters):
         n_dot_s = np.sum(n_vec * light_vector, axis=1)
 
         # Calculate the average normal neighbourhood

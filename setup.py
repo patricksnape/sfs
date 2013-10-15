@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from Cython.Build import cythonize
 import numpy as np
 
-cython_modules = ["fast_pga.pyx"]
+cython_modules = ['fast_pga.pyx', 'inpaint.pyx']
 
 setup(name='sfs',
       version='0.1',

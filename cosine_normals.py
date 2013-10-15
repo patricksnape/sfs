@@ -55,18 +55,3 @@ class Spherical(object):
         cart[np.isnan(cart)] = 0.0
 
         return cart
-
-
-class ImageSpherical(Spherical):
-
-    def logmap(self, tangent_vectors):
-        vectors = tangent_vectors.as_vector(keep_channels=True)
-        logmap_vectors = Spherical.logmap(self, vectors)
-        return tangent_vectors.from_vector(np.squeeze(logmap_vectors),
-                                           n_channels=4)
-
-    def expmap(self, sd_vectors):
-        vectors = sd_vectors.as_vector(keep_channels=True)
-        expmap_vectors = Spherical.expmap(self, vectors)
-        return sd_vectors.from_vector(np.squeeze(expmap_vectors),
-                                      n_channels=3)
