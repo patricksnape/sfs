@@ -25,7 +25,13 @@ class ImageMapper(object):
 class IdentityMapper(object):
 
     def logmap(self, sd_vectors):
-        return sd_vectors
+        if sd_vectors.ndim == 2:
+            return sd_vectors[None, ...]
+        else:
+            return sd_vectors
 
     def expmap(self, tangent_vectors):
-        return tangent_vectors
+        if tangent_vectors.ndim == 2:
+            return tangent_vectors[None, ...]
+        else:
+            return tangent_vectors
