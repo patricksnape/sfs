@@ -10,10 +10,11 @@ def row_norm(v):
 
 
 def cart2sph(x, y, z):
-    xy = np.power(x, 2) + np.power(y, 2)
+    xy = np.sqrt(x**2 + y**2)
     # for elevation angle defined from XY-plane up
     return np.concatenate([np.arctan2(y, x)[..., None],
-                           np.arctan2(z, np.sqrt(xy))[..., None]], axis=-1)
+                           np.arctan2(z, xy)[..., None],
+                           np.sqrt(x**2 + y**2 + z**2)[..., None]], axis=-1)
 
 
 def sph2cart(azimuth, elevation, r):
