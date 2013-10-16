@@ -157,7 +157,7 @@ def geometric_sfs(intensity_image, initial_estimate, normal_model,
     theta_image = intensity_image.from_vector(theta_vec)
 
     n = esimate_normals_from_intensity(initial_estimate, theta_image)
-    from sfs_io import print_replace_line
+
     for i in xrange(n_iters):
         v0 = mapping_object.logmap(n)
 
@@ -179,8 +179,6 @@ def geometric_sfs(intensity_image, initial_estimate, normal_model,
         # Total error
         error = np.sum(np.nan_to_num(error))
         n = npp
-
-        print_replace_line(str(error))
 
         # Algorithm has converged
         if error < max_error:
