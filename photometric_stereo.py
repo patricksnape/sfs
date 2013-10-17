@@ -33,7 +33,6 @@ def photometric_stereo(images, lights):
 
     # n_masked_pixels x n_channels
     pixels = images.as_vector(keep_channels=True)
-    n_pixels = pixels.shape[0]
     n_images = pixels.shape[1]
 
     if n_images < 3:
@@ -42,18 +41,11 @@ def photometric_stereo(images, lights):
     if LL.shape[1] != n_images:
         raise ValueError('You must provide a light direction for each input '
                          'channel.')
-    albedo = np.zeros(n_pixels)
-    normals = np.zeros([n_pixels, 3])
-    
-    for i in xrange(n_pixels):
-        I = pixels[i, :]
-        nn = np.dot(LL, I)
-        pixel_norm = norm(nn)
-        albedo[i] = pixel_norm
 
-        if pixel_norm != 0.0:
-            # normal = n / albedo
-            normals[i, :] = nn / pixel_norm
+    normals = np.dot(pixels, LL.T)
+    magnitudes = np.sqrt((normals * normals).sum(axis=1))
+    albedo = magnitudes
+    normals[magnitudes != 0.0, :] /= magnitudes[magnitudes != 0.0][..., None]
                     
     return (images.from_vector(normals, n_channels=3),
             images.from_vector(albedo, n_channels=1))
