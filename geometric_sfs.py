@@ -1,7 +1,7 @@
 import numpy as np
 from mapping import IdentityMapper
 from pybug.image import MaskedNDImage
-from vector_utils import normalise_vector, normalise_image
+from vector_utils import normalise_vector, normalise_image, row_norm
 
 
 def on_cone_rotation(theta_image, normal_image, s):
@@ -18,13 +18,12 @@ def on_cone_rotation(theta_image, normal_image, s):
     
     # expects |nprime| = |sec| = 1
     # represents intensity and can never be < 0
-    d = np.squeeze(np.inner(nprime, s))
+    d = np.squeeze(np.inner(nprime, s) / (row_norm(nprime) * row_norm(s)))
     d[d < 0.0] = 0.0
     
     beta = np.arccos(d)
-    alpha = theta - beta
-    # flip alpha so that it rotates along the correct axis
-    alpha = -alpha
+    # flip beta and theta so that it rotates along the correct axis
+    alpha = beta - theta
     
     c = np.cos(alpha)
     cprime = 1.0 - c
