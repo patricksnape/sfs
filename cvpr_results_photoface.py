@@ -68,13 +68,18 @@ lights = np.array([[ 0.5,  0.4, 2],
                    [ 0.5, -0.4, 2]])
 sfs_light = lights[sfs_index, :]
 
-# (Feature space, Subject) - Alphabetical order
-mean_depth_error_results = np.zeros([len(feature_spaces), len(photoface_subjects)])
-mean_angular_error_results = np.zeros([len(feature_spaces), len(photoface_subjects)])
+# (Subject, Feature space) - Alphabetical order
+mean_depth_error_results = np.zeros([len(photoface_subjects), len(feature_spaces)])
+mean_angular_error_results = np.zeros([len(photoface_subjects), len(feature_spaces)])
 
-# (Feature space, Subject) - Alphabetical order
-std_depth_error_results = np.zeros([len(feature_spaces), len(photoface_subjects)])
-std_angular_error_results = np.zeros([len(feature_spaces), len(photoface_subjects)])
+# (Subject, Feature space) - Alphabetical order
+std_depth_error_results = np.zeros([len(photoface_subjects), len(feature_spaces)])
+std_angular_error_results = np.zeros([len(photoface_subjects), len(feature_spaces)])
+
+# 5 feature spaces + ground truth
+normals = dict(zip(photoface_subjects, [{}, {}, {}, {}, {}, {}, {}]))
+for s in normals.values():
+    s.update(zip(['ground_truth'] + feature_spaces, [None] * (len(feature_spaces) + 1)))
 
 for i, subject_id in enumerate(photoface_subjects):
     print "Running experiment for {0}".format(subject_id)
@@ -112,8 +117,11 @@ for i, subject_id in enumerate(photoface_subjects):
                                           ground_truth_normals.pixels[:, :, 1])
     ground_truth_depth_image = DepthImage((ground_truth_depth - np.min(ground_truth_depth)) / 2,
                                           texture=temp_texture)
-    ground_truth_depth_image.view(mode='mesh')
-    save_result_images(subject_id, 'all', 'groundtruth')
+    normals[subject_id]['ground_truth'] = ground_truth_normals
+
+    # TODO: save images
+    #ground_truth_depth_image.view(mode='mesh')
+    #save_result_images(subject_id, 'all', 'groundtruth')
 
     for k, feature_space in enumerate(feature_spaces):
         print "Running {0} for {1}".format(feature_space, subject_id)
@@ -146,31 +154,33 @@ for i, subject_id in enumerate(photoface_subjects):
                                     initial_estimate_image, normal_model,
                                     sfs_light, n_iters=200,
                                     mapping_object=mapping_object)
+        normals[subject_id][feature_space] = reconstructed_normals
 
         reconstructed_depth = frankotchellappa(
             -reconstructed_normals.pixels[:, :, 0],
             reconstructed_normals.pixels[:, :, 1])
         reconstructed_depth_image = DepthImage((reconstructed_depth - np.min(reconstructed_depth)) / 2,
                                                texture=temp_texture)
-        reconstructed_depth_image.view(mode='mesh')
-        save_result_images(subject_id, feature_space, 'sfs')
+        # TODO: save images
+        #reconstructed_depth_image.view(mode='mesh')
+        #save_result_images(subject_id, feature_space, 'sfs')
 
         depth_differences = np.abs(reconstructed_depth.flatten() -
                                    ground_truth_depth.flatten())
-        mean_depth_error_results[k, i] = np.mean(depth_differences)
+        mean_depth_error_results[i, k] = np.mean(depth_differences)
 
         ground_truth_normal_vec = ground_truth_normals.as_vector(keep_channels=True)
         recon_normal_vec = reconstructed_normals.as_vector(keep_channels=True)
         angular_differences = np.arccos(np.clip(np.sum(recon_normal_vec *
                                                        ground_truth_normal_vec, axis=-1), -1, 1))
 
-        mean_angular_error_results[k, i] = np.mean(angular_differences)
+        mean_angular_error_results[i, k] = np.mean(angular_differences)
 
-        print "{0}_{1}: Mean Depth error: {2}".format(subject_id, feature_space, mean_depth_error_results[k, i])
-        print "{0}_{1}: Mean Angular error: {2}".format(subject_id, feature_space, mean_angular_error_results[k, i])
+        print "{0}_{1}: Mean Depth error: {2}".format(subject_id, feature_space, mean_depth_error_results[i, k])
+        print "{0}_{1}: Mean Angular error: {2}".format(subject_id, feature_space, mean_angular_error_results[i, k])
 
-        std_depth_error_results[k, i] = np.std(depth_differences)
-        std_angular_error_results[k, i] = np.std(angular_differences)
+        std_depth_error_results[i, k] = np.std(depth_differences)
+        std_angular_error_results[i, k] = np.std(angular_differences)
 
 # Save out error results
 with open('/vol/atlas/pts08/cvpr/results/photoface/mean_depth_errors.pkl', 'wb') as f:
@@ -181,3 +191,5 @@ with open('/vol/atlas/pts08/cvpr/results/photoface/std_depth_errors.pkl', 'wb') 
     cPickle.dump(std_depth_error_results, f, protocol=2)
 with open('/vol/atlas/pts08/cvpr/results/photoface/std_angular_errors.pkl', 'wb') as f:
     cPickle.dump(std_angular_error_results, f, protocol=2)
+with open('/vol/atlas/pts08/cvpr/results/photoface/all_result_dict.pkl', 'wb') as f:
+    cPickle.dump(normals, f, protocol=2)
