@@ -49,9 +49,9 @@ class Spherical(object):
         sgz = sgz / gzsgz
 
         phi = np.arctan2(gy, gx)
-        theta = np.arctan(gz / sgz)
+        theta = np.arctan2(sgz, gz)
 
-        cart = sph2cart(phi, theta, np.ones_like(phi))
+        cart = sph2cart(phi, theta, np.ones_like(phi), theta_origin='z')
         cart[np.isnan(cart)] = 0.0
 
         return cart
