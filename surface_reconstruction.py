@@ -44,7 +44,7 @@ def frankotchellappa(dzdx, dzdy):
     pi_over_2 = np.pi / 2.0
     row_grid = np.linspace(-pi_over_2, pi_over_2, rows)
     col_grid = np.linspace(-pi_over_2, pi_over_2, cols)
-    wx, wy = np.meshgrid(col_grid, row_grid)
+    wy, wx = np.meshgrid(row_grid, col_grid, indexing='ij')
 
     # Quadrant shift to put zero frequency at the appropriate edge
     wx = ifftshift(wx)
