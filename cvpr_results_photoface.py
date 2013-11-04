@@ -66,6 +66,7 @@ lights = np.array([[ 0.5,  0.4, 2],
                    [-0.5,  0.4, 2],
                    [-0.5, -0.4, 2],
                    [ 0.5, -0.4, 2]])
+lights[:, 0] = -lights[:, 0]
 sfs_light = lights[sfs_index, :]
 
 # (Subject, Feature space) - Alphabetical order
@@ -108,12 +109,16 @@ for i, subject_id in enumerate(photoface_subjects):
         group='ibug_68_closed_mouth', label='all')
     intensity_image.constrain_mask_to_landmarks(
         group='ibug_68_closed_mouth', label='all')
+    intensity_image.crop_to_landmarks(group='ibug_68_closed_mouth',
+                                      label='all', boundary=2)
+    ground_truth_images.crop_to_landmarks(group='ibug_68_closed_mouth',
+                                          label='all', boundary=2)
 
     temp_texture = subject_images[sfs_index]
 
     # Perform Photometric Stereo
     ground_truth_normals, ground_truth_albedo = ps(ground_truth_images, lights)
-    ground_truth_depth = frankotchellappa(ground_truth_normals.pixels[:, :, 0],
+    ground_truth_depth = frankotchellappa(-ground_truth_normals.pixels[:, :, 0],
                                           ground_truth_normals.pixels[:, :, 1])
     ground_truth_depth_image = DepthImage((ground_truth_depth - np.min(ground_truth_depth)) / 2,
                                           texture=temp_texture)
@@ -148,11 +153,14 @@ for i, subject_id in enumerate(photoface_subjects):
                                               initial_estimate_image,
                                               intrinsic_mean_normals)
         # Normalise the image so that it has unit albedo
-        warped_intensity_image.masked_pixels /= ground_truth_albedo.masked_pixels
-        warped_intensity_image.masked_pixels /= np.max(warped_intensity_image.masked_pixels)
+        #warped_intensity_image.masked_pixels /= ground_truth_albedo.masked_pixels
+        #warped_intensity_image.masked_pixels = \
+        #    ((warped_intensity_image.masked_pixels - np.nanmin(warped_intensity_image.masked_pixels)) /
+        #     (np.nanmax(warped_intensity_image.masked_pixels) - np.nanmin(warped_intensity_image.masked_pixels)))
         reconstructed_normals = sfs(warped_intensity_image,
-                                    initial_estimate_image, normal_model,
-                                    sfs_light, n_iters=200,
+                                    initial_estimate_image,
+                                    normal_model,
+                                    sfs_light, n_iters=50,
                                     mapping_object=mapping_object)
         normals[subject_id][feature_space] = reconstructed_normals
 
