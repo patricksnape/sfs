@@ -19,6 +19,7 @@ def on_cone_rotation(theta_image, normal_image, s):
     # expects |nprime| = |sec| = 1
     # represents intensity and can never be < 0
     d = np.squeeze(np.inner(nprime, s) / (row_norm(nprime) * row_norm(s)))
+    d = np.nan_to_num(d)
     d[d < 0.0] = 0.0
     
     beta = np.arccos(d)
@@ -58,13 +59,13 @@ def esimate_normals_from_intensity(average_normals, theta_image):
     # Represents tan(phi) = sin(partial I/ partial y) / cos(partial I/ partial x)
     # Where [partial I/ partial y] is the y-direction of the gradient field
     average_masked_pixels = average_normals.as_vector(keep_channels=True)
-    n = np.sqrt(average_masked_pixels[:, 0] ** 2 + average_masked_pixels[:, 0] ** 2)
-    cosphi = average_masked_pixels[:, 0] / average_masked_pixels[:, 2]
-    sinphi = average_masked_pixels[:, 1] / average_masked_pixels[:, 2]
+    n = np.sqrt(average_masked_pixels[:, 0] ** 2 + average_masked_pixels[:, 1] ** 2)
+    cosphi = average_masked_pixels[:, 0] / n
+    sinphi = average_masked_pixels[:, 1] / n
     
     # Reset any nan-vectors to 0.0
-    cosphi[np.isnan(cosphi)] = 0.0
-    sinphi[np.isnan(sinphi)] = 0.0
+    cosphi = np.nan_to_num(cosphi)
+    sinphi = np.nan_to_num(sinphi)
     
     nestimates = np.zeros_like(average_masked_pixels)
     # sin(theta) * cos(phi)
@@ -78,8 +79,8 @@ def esimate_normals_from_intensity(average_normals, theta_image):
     return average_normals.from_vector(nestimates)
 
 
-def geometric_sfs(intensity_image, initial_estimate, normal_model,
-                  light_vector, n_iters=100, max_error=10**-6,
+def geometric_sfs(intensity_image, initial_estimate,
+                  normal_model, light_vector, n_iters=100,
                   mapping_object=IdentityMapper()):
     """
     It is assumed that the given intensity image has been pre-aligned so that
@@ -167,23 +168,12 @@ def geometric_sfs(intensity_image, initial_estimate, normal_model,
         nprime = normalise_image(nprime)
         
         # Equivalent to
-        # expmap(theta * logmap(expmap(vprime)) / row_norm(logmap(expmap(vprime))))
+        # expmap(theta * logmap(expmap(vprime)) /
+        # row_norm(logmap(expmap(vprime))))
         npp = on_cone_rotation(theta_image, nprime, light_vector)
-        npp = normalise_image(npp)
-
-        # Check for convergence of the algorithm (not guaranteed)
-        # Inner product
-        error = np.arccos(np.sum(n.as_vector(keep_channels=3) *
-                                 npp.as_vector(keep_channels=3), axis=1))
-        # Total error
-        error = np.sum(np.nan_to_num(error))
         n = npp
 
-        # Algorithm has converged
-        if error < max_error:
-            break
-
-    return normalise_image(nprime)
+    return normalise_image(npp)
 
 
 def horn_brooks(intensity_image, initial_estimate, normal_model, light_vector,
