@@ -1,6 +1,6 @@
 import numpy as np
 from mapping import IdentityMapper
-from pybug.image import MaskedNDImage
+from menpo.image import MaskedImage
 from vector_utils import normalise_vector, normalise_image, row_norm
 
 
@@ -53,7 +53,7 @@ def on_cone_rotation(theta_image, normal_image, s):
     return normal_image.from_vector(n)
 
 
-def esimate_normals_from_intensity(average_normals, theta_image):
+def estimate_normals_from_intensity(average_normals, theta_image):
     theta = theta_image.as_vector()
 
     # Represents tan(phi) = sin(partial I/ partial y) / cos(partial I/ partial x)
@@ -156,7 +156,7 @@ def geometric_sfs(intensity_image, initial_estimate,
     theta_vec = np.arccos(intensity_image.as_vector())
     theta_image = intensity_image.from_vector(theta_vec)
 
-    n = esimate_normals_from_intensity(initial_estimate, theta_image)
+    n = estimate_normals_from_intensity(initial_estimate, theta_image)
 
     for i in xrange(n_iters):
         v0 = mapping_object.logmap(n)
@@ -193,7 +193,7 @@ def horn_brooks(intensity_image, initial_estimate, normal_model, light_vector,
     theta_vec = np.arccos(intensity_image.as_vector())
     theta_image = intensity_image.from_vector(theta_vec)
 
-    n_im = esimate_normals_from_intensity(initial_estimate, theta_image)
+    n_im = estimate_normals_from_intensity(initial_estimate, theta_image)
 
     average_kernel = np.array([[0.0,  0.25, 0.0],
                                [0.25, 0.0,  0.25],
@@ -215,7 +215,7 @@ def horn_brooks(intensity_image, initial_estimate, normal_model, light_vector,
         n_bar = np.concatenate([n_xs[..., None],
                                 n_ys[..., None],
                                 n_zs[..., None]], axis=-1)
-        n_bar = MaskedNDImage(n_bar, mask=n_im.mask).as_vector(
+        n_bar = MaskedImage(n_bar, mask=n_im.mask).as_vector(
             keep_channels=True)
 
         rho = scale_constant * (I_vec - n_dot_s)

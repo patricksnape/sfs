@@ -1,32 +1,31 @@
 import numpy as np
 import cPickle
 import os.path
-from pybug.landmark.labels import labeller, ibug_68_closed_mouth
-from pybug.io import auto_import
-from pybug.image import MaskedNDImage
-from pybug.transform import Translation
-from pybug.transform.tps import TPS
+from menpo.landmark.labels import labeller, ibug_68_closed_mouth
+import menpo.io as mio
+from menpo.image import MaskedImage
+from menpo.transform import ThinPlateSplines
 from sfs_io import print_replace_line
 from copy import deepcopy
 from mapping import PGA, AEP, Spherical
 from pga import intrinsic_mean
-from pybug.model.linear import PCAModel
+from menpo.model.pca import PCAModel
 from vector_utils import normalise_vector
 
 
 def build_all_models_frgc(images, ref_frame_path, subject_id,
-                          out_path='/vol/atlas/pts08/cvpr'):
+                          out_path='/vol/atlas/homes/pts08/',
+                          transform_class=ThinPlateSplines,
+                          square_mask=False):
     print "Beginning model creation for {0}".format(subject_id)
     # Build reference frame
-    ref_frame = auto_import(ref_frame_path)[0]
-    # Assumed to have come from Matlab
-    Translation(np.asarray([-1, -1])).apply_inplace(
-        ref_frame.landmarks['PTS'].lms)
+    ref_frame = mio.import_image(ref_frame_path)
     labeller([ref_frame], 'PTS', ibug_68_closed_mouth)
     ref_frame.crop_to_landmarks(boundary=2, group='ibug_68_closed_mouth',
                                 label='all')
-    ref_frame.constrain_mask_to_landmarks(group='ibug_68_closed_mouth',
-                                          label='all')
+    if not square_mask:
+        ref_frame.constrain_mask_to_landmarks(group='ibug_68_closed_mouth',
+                                              label='all')
 
     reference_shape = ref_frame.landmarks['ibug_68_closed_mouth'].lms
 
@@ -36,7 +35,7 @@ def build_all_models_frgc(images, ref_frame_path, subject_id,
 
     # Warp each of the images to the reference image
     print "Warping all frgc shapes to reference frame of {0}".format(subject_id)
-    tps_transforms = [TPS(reference_shape, shape) for shape in shapes]
+    tps_transforms = [transform_class(reference_shape, shape) for shape in shapes]
     warped_images = [img.warp_to(ref_frame.mask, t)
                      for img, t in zip(images, tps_transforms)]
 
@@ -79,15 +78,20 @@ def build_all_models_frgc(images, ref_frame_path, subject_id,
                                       out_path=out_path)
 
     # PCA models
-    print 'Computing PCA models'
+    n_components = 200
+    print 'Computing PCA models ({} components)'.format(n_components)
     template = ref_frame
 
-    normal_model = PCAModel(normal_images, center=True, n_components=200)
-    cosine_model = PCAModel(normal_images, center=False, n_components=200)
-    spherical_model = PCAModel(spherical_images, center=False,
-                               n_components=200)
-    aep_model = PCAModel(aep_images, center=False, n_components=200)
-    pga_model = PCAModel(pga_images, center=False, n_components=200)
+    normal_model = PCAModel(normal_images, center=True)
+    normal_model.trim_components(200)
+    cosine_model = PCAModel(normal_images, center=False)
+    cosine_model.trim_components(200)
+    spherical_model = PCAModel(spherical_images, center=False)
+    spherical_model.trim_components(200)
+    aep_model = PCAModel(aep_images, center=False)
+    aep_model.trim_components(200)
+    pga_model = PCAModel(pga_images, center=False)
+    pga_model.trim_components(200)
 
     mean_normals_image = normal_model.mean
     mu_image = mean_normals_image.from_vector(mu)
@@ -115,13 +119,13 @@ def extract_normals(images):
 
 def create_feature_space(feature_matrix, example_image, feature_space_name,
                          subject_id,
-                         out_path='/vol/atlas/pts08/cvpr'):
+                         out_path='/vol/atlas/homes/pts08'):
     feature_space_images = []
     N = feature_matrix.shape[0]
     for i, n in enumerate(feature_matrix):
-        new_im = MaskedNDImage.blank(example_image.shape,
-                                     mask=example_image.mask,
-                                     n_channels=n.shape[1])
+        new_im = MaskedImage.blank(example_image.shape,
+                                   mask=example_image.mask,
+                                   n_channels=n.shape[1])
         new_im.from_vector_inplace(n.flatten())
         new_im.landmarks = example_image.landmarks
         feature_space_images.append(new_im)
@@ -137,7 +141,7 @@ def create_feature_space(feature_matrix, example_image, feature_space_name,
 
 def pickle_model(out_path, subject_id, feature_space_name,
                  model, template, mean_normals, intrinsic_means=None):
-    filename = 'frgc_spring2003_sfs_tps_{0}_{1}.pkl'.format(subject_id,
+    filename = 'frgc_spring2003_sfs_sim_{0}_{1}.pkl'.format(subject_id,
                                                             feature_space_name)
     pickle_path = os.path.join(out_path, filename)
     out_dict = {'appearance_model': model,

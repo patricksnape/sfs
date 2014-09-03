@@ -1,9 +1,8 @@
 import os.path
 import cPickle
-from pybug.io import auto_import
+import menpo.io as mio
 from inpaint import replace_nans
 from scipy.ndimage.filters import gaussian_filter, median_filter
-from pybug.transform import Translation
 import numpy as np
 import sys
 
@@ -15,7 +14,7 @@ def print_replace_line(string):
 
 
 def load_frgc(session_id, recreate_meshes=False,
-              output_base_path='/vol/atlas/pts08/',
+              output_base_path='/vol/atlas/homes/pts08/',
               input_base_path='/vol/atlas/databases/frgc',
               max_images=None):
     previously_pickled_path = os.path.join(
@@ -26,27 +25,28 @@ def load_frgc(session_id, recreate_meshes=False,
         with open(previously_pickled_path) as f:
             images = cPickle.load(f)
     else:
-        all_images = auto_import(abs_files_path, max_images=max_images)
+        all_images = list(mio.import_images(abs_files_path,
+                                            max_images=max_images))
         images = [im for im in all_images if im.n_landmark_groups == 1]
         print '{0}% of the images had landmarks'.format(
             len(images) / float(len(all_images)) * 100)
 
         for i, im in enumerate(images):
-            Translation(np.array([-1, -1])).apply_inplace(im.landmarks['PTS'].lms)
             im.pixels[..., 2] = replace_nans(im.pixels[..., 2], 100, 0.1)
             im.pixels[..., 2] = median_filter(im.pixels[..., 2], 5.0)
             im.pixels[..., 2] = gaussian_filter(im.pixels[..., 2], [2.0, 3.0])
             im.rebuild_mesh()
             print_replace_line(
                 'Image {0} of {1} cleaned'.format(i + 1, len(images)))
-
-        cPickle.dump(images, open(previously_pickled_path, 'wb'), protocol=2)
+        # Only dump the saved images if we loaded all of them!
+        if max_images is None:
+            cPickle.dump(images, open(previously_pickled_path, 'wb'), protocol=2)
 
     return images
 
 
 def load_basel_from_mat(recreate_meshes=False,
-                        output_base_path='/vol/atlas/pts08/',
+                        output_base_path='/vol/atlas/homes/pts08/',
                         input_base_path='/vol/atlas/pts08/basel/',
                         max_images=None):
     previously_pickled_path = os.path.join(output_base_path,
@@ -58,8 +58,8 @@ def load_basel_from_mat(recreate_meshes=False,
             images = cPickle.load(f)
     else:
         from scipy.io import loadmat
-        from pybug.image import RGBImage, ShapeImage
-        from pybug.shape import PointCloud
+        from menpo.image import RGBImage, ShapeImage
+        from menpo.shape import PointCloud
 
         basel_dataset = loadmat(mat_file_path)
         textures = basel_dataset['textures']
@@ -75,7 +75,7 @@ def load_basel_from_mat(recreate_meshes=False,
             shape[..., 1:3, i] *= -1
             shape_image = ShapeImage(shape[..., i],
                                      texture=RGBImage(textures[..., i]))
-            shape_image.landmarks['PTS'] = PointCloud(landmarks[..., i] - 1)
+            shape_image.landmarks['PTS'] = PointCloud(landmarks[..., i])
             shape_image.mesh.texture.landmarks['PTS'] = shape_image.landmarks['PTS']
             shape_image.constrain_mask_to_landmarks()
             shape_image.rebuild_mesh()
